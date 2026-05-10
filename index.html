@@ -1,0 +1,312 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Angry Castle V12 - Random Coins</title>
+    <style>
+        :root { --p1-color: #3498db; --p2-color: #e74c3c; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #2c3e50; color: white; overflow: hidden; user-select: none; }
+        
+        #setup-screen { position: absolute; inset: 0; background: #34495e; z-index: 1000; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .setup-card { background: #2c3e50; padding: 20px; border-radius: 12px; width: 95%; max-width: 900px; margin-bottom: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        
+        .input-row { display: flex; gap: 15px; background: #3e5871; padding: 20px; border-radius: 10px; align-items: stretch; margin-bottom: 10px; }
+        .text-fields { flex: 2; display: flex; flex-direction: column; gap: 10px; }
+        .text-fields input { padding: 12px; border-radius: 6px; border: none; font-size: 1rem; }
+        
+        .paste-zone { flex: 1; border: 3px dashed #f1c40f; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; background: rgba(241, 196, 15, 0.05); min-height: 120px; }
+        #paste-preview { max-width: 100%; max-height: 100px; display: none; border-radius: 5px; margin-top: 5px; }
+
+        .btn { cursor: pointer; padding: 12px 20px; border: none; border-radius: 6px; font-weight: bold; }
+        .btn-add { background: #f1c40f; color: #2c3e50; width: 100%; margin-top: 10px; }
+        .btn-util { background: #95a5a6; color: white; padding: 8px 15px; font-size: 0.85rem; }
+
+        #vocab-list { margin-top: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+        .word-tag { background: #34495e; padding: 8px; border-radius: 8px; display: flex; align-items: center; gap: 10px; position: relative; }
+        .word-tag img { width: 45px; height: 45px; object-fit: cover; border-radius: 4px; }
+        .del-btn { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        #game-container { display: flex; width: 100vw; height: 100vh; background: #87CEEB; display: none; }
+        .zone { flex: 1; position: relative; overflow: hidden; }
+        .divider { width: 12px; background: #7d5a44; z-index: 100; border-left: 2px solid #5d4037; }
+        
+        .castle-container { position: absolute; bottom: 10px; width: 220px; height: 220px; z-index: 10; transition: transform 0.2s; }
+        #castle-1 { left: 20px; } #castle-2 { right: 20px; }
+        .castle-svg { width: 100%; height: 100%; filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)); }
+        
+        .shake { animation: shakeAnim 0.3s ease-in-out; }
+        @keyframes shakeAnim { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-12px); } 75% { transform: translateX(12px); } }
+
+        .interaction-area { position: absolute; bottom: 40px; width: 220px; display: flex; flex-direction: column; align-items: center; }
+        #area-1 { left: 260px; } #area-2 { right: 260px; }
+        .question-box { background: white; padding: 15px; border-radius: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.2); margin-bottom: 20px; width: 100%; text-align: center; }
+        .q-img { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; }
+        .bombs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .bomb { width: 90px; height: 90px; background: radial-gradient(circle at 35% 35%, #555, #000); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: crosshair; color: white; font-size: 0.85rem; font-weight: bold; text-align: center; padding: 8px; box-sizing: border-box; border: 3px solid #fff; box-shadow: 0 5px 0 #111; }
+        
+        .stats { position: absolute; top: 20px; width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 200; }
+        .hp-bar { width: 200px; height: 22px; background: #333; border: 2px solid #fff; border-radius: 11px; overflow: hidden; margin-top: 8px; }
+        .hp-fill { height: 100%; background: #2ecc71; width: 100%; transition: width 0.5s; }
+        
+        .dot { position: absolute; width: 6px; height: 6px; background: white; border-radius: 50%; pointer-events: none; opacity: 0.7; }
+        .flying-bomb { position: absolute; width: 50px; height: 50px; background: #222; border-radius: 50%; border: 2px solid #f1c40f; box-shadow: 0 0 15px #f1c40f; z-index: 500; }
+        
+        #end-screen { position: absolute; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        
+        @keyframes coinPop { 0%{transform:scale(0.5);opacity:1;} 100%{transform:translateY(-120px) scale(1.5);opacity:0;} }
+    </style>
+</head>
+<body>
+
+<div id="setup-screen">
+    <div class="setup-card">
+        <h2 style="margin:0 0 15px 0; color:#f1c40f;">🏰 ANGRY CASTLE V12 - RANDOM COINS EDITION</h2>
+        <div class="input-row">
+            <div class="text-fields">
+                <input type="text" id="word-input" placeholder="Word...">
+                <input type="text" id="link-input" placeholder="Image URL...">
+                <button class="btn btn-add" onclick="addVocab()">ADD WORD</button>
+            </div>
+            <div class="paste-zone" id="paste-target" onclick="this.focus()">
+                <div id="paste-msg" style="text-align:center; font-size:0.8rem;">CLICK & CTRL + V</div>
+                <img id="paste-preview">
+            </div>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-util" onclick="exportData()">SAVE LESSON</button>
+            <button class="btn btn-util" onclick="document.getElementById('import-file').click()">LOAD LESSON</button>
+            <input type="file" id="import-file" style="display:none" onchange="importData(event)">
+        </div>
+        <div id="vocab-list"></div>
+    </div>
+    <div class="setup-card" style="text-align:center;">
+        HP (Lives): <input type="number" id="cfg-hp" value="10" style="width:50px; padding:5px;">
+        <button class="btn" style="background:#2ecc71; color:white; padding:10px 40px;" onclick="startGame()">🚀 START GAME</button>
+    </div>
+</div>
+
+<div id="game-container">
+    <div id="zone-1" class="zone">
+        <div class="stats"><div>TEAM 1 | 🪙 <span id="p1-c">0</span></div><div class="hp-bar"><div id="p1-h-f" class="hp-fill"></div></div></div>
+        <div class="castle-container" id="castle-1"></div>
+        <div class="interaction-area" id="area-1"><div class="question-box" id="p1-q"></div><div class="bombs-grid" id="p1-b"></div></div>
+    </div>
+    <div class="divider"></div>
+    <div id="zone-2" class="zone">
+        <div class="stats"><div>TEAM 2 | 🪙 <span id="p2-c">0</span></div><div class="hp-bar"><div id="p2-h-f" class="hp-fill"></div></div></div>
+        <div class="castle-container" id="castle-2"></div>
+        <div class="interaction-area" id="area-2"><div class="question-box" id="p2-q"></div><div class="bombs-grid" id="p2-b"></div></div>
+    </div>
+</div>
+
+<div id="end-screen">
+    <h1 id="win-txt" style="font-size:4rem; color:#f1c40f;"></h1>
+    <p id="f-stats" style="color:white; font-size:1.5rem;"></p>
+    <button class="btn" style="background:#f1c40f; padding:15px 40px;" onclick="location.reload()">PLAY AGAIN</button>
+</div>
+
+<script>
+    let vocabs = [];
+    let p1 = { hp: 10, coins: 0, cur: null };
+    let p2 = { hp: 10, coins: 0, cur: null };
+    let currentPastedData = null;
+
+    function getHardcoreCastleSVG(percent, mainColor) {
+        let opacity = percent <= 0 ? 0 : 1;
+        let castleContent = "";
+        let ruinColor = "#555"; let fireColor = "#e67e22";
+
+        if (percent > 0) {
+            if (percent > 20) castleContent += `<rect x="40" y="110" width="120" height="70" fill="${mainColor}" />`;
+            else castleContent += `<path d="M40 180 L60 140 L90 160 L120 130 L160 180 Z" fill="${ruinColor}" />`;
+
+            if (percent > 60) {
+                castleContent += `<rect x="30" y="50" width="40" height="80" fill="${mainColor}" />`;
+                castleContent += `<rect x="25" y="40" width="50" height="15" fill="#444" />`;
+            } else if (percent > 20) {
+                castleContent += `<path d="M30 130 L70 130 L65 70 L35 80 Z" fill="${mainColor}" transform="rotate(-15, 50, 130)"/>`;
+            }
+
+            if (percent > 80) {
+                castleContent += `<rect x="130" y="50" width="40" height="80" fill="${mainColor}" />`;
+                castleContent += `<rect x="125" y="40" width="50" height="15" fill="#444" />`;
+            } else if (percent > 40) {
+                castleContent += `<path d="M130 130 L170 130 L160 90 L140 95 Z" fill="${mainColor}" transform="rotate(20, 150, 130)"/>`;
+            }
+
+            if (percent > 40) castleContent += `<path d="M85 180 L85 150 Q100 130 115 150 L115 180 Z" fill="#333" />`;
+            else if (percent > 0) castleContent += `<circle cx="100" cy="160" r="15" fill="${fireColor}" opacity="0.7"/>`;
+
+            if (percent <= 80) castleContent += `<path d="M50 125 L75 150 M120 120 L150 145" stroke="#222" stroke-width="4" />`;
+            if (percent <= 60) castleContent += `<circle cx="100" cy="115" r="12" fill="#87CEEB" />`;
+            if (percent <= 40) castleContent += `<circle cx="150" cy="70" r="15" fill="${fireColor}" opacity="0.8"/>`;
+            if (percent <= 20) castleContent += `<path d="M40 110 L160 110 L140 180 L60 180 Z" fill="#2c3e50" opacity="0.6"/>`;
+        }
+
+        return `<svg viewBox="0 0 200 200" class="castle-svg" style="opacity:${opacity}">${castleContent}<path d="M20 180 Q100 200 180 180 L180 190 Q100 210 20 190 Z" fill="#5d4037" /></svg>`;
+    }
+
+    document.addEventListener('paste', e => {
+        const item = Array.from(e.clipboardData.items).find(x => x.type.indexOf('image') !== -1);
+        if (item) {
+            const reader = new FileReader();
+            reader.onload = ev => {
+                currentPastedData = ev.target.result;
+                document.getElementById('paste-preview').src = currentPastedData;
+                document.getElementById('paste-preview').style.display = 'block';
+                document.getElementById('paste-msg').innerText = "IMAGE READY ✅";
+            };
+            reader.readAsDataURL(item.getAsFile());
+        }
+    });
+
+    function addVocab() {
+        const w = document.getElementById('word-input').value.trim();
+        const l = document.getElementById('link-input').value.trim();
+        let img = currentPastedData || l;
+        if (!w || !img) return alert("Need Word and Image!");
+        vocabs.push({ word: w, img });
+        document.getElementById('word-input').value = ""; document.getElementById('link-input').value = "";
+        currentPastedData = null; document.getElementById('paste-preview').style.display = 'none';
+        renderList();
+    }
+
+    function renderList() {
+        document.getElementById('vocab-list').innerHTML = vocabs.map((v, i) => `
+            <div class="word-tag"><img src="${v.img}"><span>${v.word}</span><div class="del-btn" onclick="vocabs.splice(${i},1);renderList()">×</div></div>
+        `).join('');
+    }
+
+    function exportData() {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(vocabs)], {type:'application/json'}));
+        a.download = `lesson.json`; a.click();
+    }
+
+    function importData(e) {
+        const r = new FileReader(); r.onload = (ev) => { vocabs = JSON.parse(ev.target.result); renderList(); };
+        r.readAsText(e.target.files[0]);
+    }
+
+    function startGame() {
+        if(vocabs.length < 4) return alert("Need 4+ words!");
+        p1.hp = p2.hp = parseInt(document.getElementById('cfg-hp').value);
+        p1.coins = p2.coins = 0;
+        document.getElementById('setup-screen').style.display='none';
+        document.getElementById('game-container').style.display='flex';
+        updateCastle(1); updateCastle(2); loadQ(1); loadQ(2); updateUI();
+    }
+
+    function updateCastle(n) {
+        const p = n === 1 ? p1 : p2;
+        const max = parseInt(document.getElementById('cfg-hp').value);
+        const percent = (p.hp / max) * 100;
+        const mainColor = n === 1 ? '#7f8c8d' : '#a94442';
+        document.getElementById(`castle-${n}`).innerHTML = getHardcoreCastleSVG(percent, mainColor);
+    }
+
+    function loadQ(n) {
+        const q = vocabs[Math.floor(Math.random() * vocabs.length)];
+        const p = n === 1 ? p1 : p2; p.cur = q;
+        let choices = [q]; while(choices.length < 4) {
+            let r = vocabs[Math.floor(Math.random() * vocabs.length)];
+            if(!choices.find(x => x.word === r.word)) choices.push(r);
+        }
+        choices.sort(() => Math.random() - 0.5);
+        document.getElementById(`p${n}-q`).innerHTML = `<img src="${q.img}" class="q-img">`;
+        const grid = document.getElementById(`p${n}-b`); grid.innerHTML = '';
+        choices.forEach(v => {
+            const b = document.createElement('div'); b.className = 'bomb';
+            b.innerText = v.word; b.onmousedown = (e) => startShoot(e, n, v);
+            grid.appendChild(b);
+        });
+    }
+
+    function startShoot(e, n, v) {
+        if(!p1.hp || !p2.hp) return;
+        const sX = e.clientX, sY = e.clientY; const dots = [];
+        const move = (m) => {
+            dots.forEach(d => d.remove()); dots.length = 0;
+            const dx = sX - m.clientX, dy = sY - m.clientY;
+            const pwr = Math.min(Math.sqrt(dx*dx+dy*dy), 150)/5, ang = Math.atan2(dy, dx);
+            for(let i=0; i<12; i++) {
+                const t = i * 2.5;
+                const px = sX + Math.cos(ang)*pwr*t; const py = sY + Math.sin(ang)*pwr*t + 0.5*0.4*t*t;
+                const d = document.createElement('div'); d.className='dot'; d.style.left=px+'px'; d.style.top=py+'px';
+                document.body.appendChild(d); dots.push(d);
+            }
+        };
+        const up = (u) => {
+            document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+            dots.forEach(d => d.remove());
+            const dx = sX - u.clientX, dy = sY - u.clientY;
+            const pwr = Math.min(Math.sqrt(dx*dx+dy*dy), 150)/5, ang = Math.atan2(dy, dx);
+            if(pwr > 2) fire(n, sX, sY, ang, pwr, v);
+        };
+        document.addEventListener('mousemove', move); document.addEventListener('mouseup', up);
+    }
+
+    function fire(n, x, y, ang, pwr, v) {
+        const b = document.createElement('div'); b.className='flying-bomb'; document.body.appendChild(b);
+        let vx = Math.cos(ang)*pwr, vy = Math.sin(ang)*pwr, px = x, py = y;
+        const anim = () => {
+            vy += 0.35; px += vx; py += vy; b.style.left = px+'px'; b.style.top = py+'px';
+            const oppN = n===1?2:1;
+            const tar = document.getElementById(`castle-${oppN}`).getBoundingClientRect();
+            if(px > tar.left && px < tar.right && py > tar.top && py < tar.bottom) {
+                b.remove(); check(n, v, true); loadQ(n); return;
+            }
+            if(py > window.innerHeight || px < 0 || px > window.innerWidth) {
+                b.remove(); check(n, v, false); loadQ(n); return;
+            }
+            requestAnimationFrame(anim);
+        };
+        anim();
+    }
+
+    function check(n, v, hit) {
+        const p = n===1?p1:p2, oppN = n===1?2:1, opp = n===1?p2:p1;
+        if (v.word === p.cur.word) {
+            if(hit) {
+                let r = Math.floor(Math.random() * 3) + 1; // RANDOM 1-3 COINS
+                p.coins += r; popCoin(n, r); dmg(oppN);
+            } else {
+                p.coins += 1; popCoin(n, 1);
+            }
+        } else if(hit) {
+            let r = Math.floor(Math.random() * 2) + 1;
+            opp.coins += r; popCoin(oppN, r); dmg(n);
+        }
+        updateUI();
+    }
+
+    function dmg(n) {
+        const p = n===1?p1:p2; p.hp--;
+        const c = document.getElementById(`castle-${n}`);
+        c.classList.add('shake'); setTimeout(() => c.classList.remove('shake'), 300);
+        updateCastle(n); if(p.hp <= 0) end();
+    }
+
+    function popCoin(n, a) {
+        const c = document.createElement('div'); 
+        c.style = `position:absolute; color:#f1c40f; font-size:2.5rem; font-weight:bold; animation:coinPop 1s forwards; z-index:1000; left:${n===1?'20%':'70%'}; top:50%; pointer-events:none; text-shadow: 2px 2px #000;`;
+        c.innerText=`+${a} 🪙`; document.body.appendChild(c);
+        setTimeout(()=>c.remove(), 1000);
+    }
+
+    function updateUI() {
+        document.getElementById('p1-c').innerText = p1.coins; document.getElementById('p2-c').innerText = p2.coins;
+        const max = parseInt(document.getElementById('cfg-hp').value);
+        document.getElementById('p1-h-f').style.width = Math.max(0, (p1.hp/max*100))+'%';
+        document.getElementById('p2-h-f').style.width = Math.max(0, (p2.hp/max*100))+'%';
+    }
+
+    function end() {
+        p1.coins += Math.max(0, p1.hp); p2.coins += Math.max(0, p2.hp);
+        document.getElementById('end-screen').style.display='flex';
+        document.getElementById('win-txt').innerText = p1.coins > p2.coins ? "TEAM 1 WINS!" : "TEAM 2 WINS!";
+        document.getElementById('f-stats').innerText = `Final Score: T1: ${p1.coins} | T2: ${p2.coins}`;
+    }
+</script>
+</body>
+</html>
